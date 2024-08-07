@@ -33,17 +33,17 @@ class Leader:
 
 class Binance(object):
     def __init__(self):
-        self.proxies = get_proxies(4, 4)
+        # self.proxies = get_proxies(4, 4)
+        pass
 
-    async def leader_4_page(self, page_number, page_size):
-
+    async def leader_4_a_page(self, page_number):
         headers = {
             'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36 SLBrowser/9.0.0.10191 SLBChan/25',
         }
 
         json_data = {
             'pageNumber': page_number,
-            'pageSize': page_size,
+            'pageSize': 50,
             'timeRange': '7D',
             'dataType': 'PNL',
             'favoriteOnly': False,
@@ -55,12 +55,14 @@ class Binance(object):
         }
 
         url = 'https://www.binance.com/bapi/futures/v1/friendly/future/copy-trade/home-page/query-list'
+
         async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=json_data, headers=headers,
-                                    proxy=random.choice(self.proxies)['http']) as respond:
-                if respond.status != 200:
-                    leader_list = await respond.json()['data']['list']
-                    return leader_list
+            # async with session.post(url, json=json_data, headers=headers,
+            #                         proxy=random.choice(self.proxies)['http']) as respond:
+            async with session.post(url, json=json_data, headers=headers) as respond:
+                if respond.status == 200:
+                    leader_list = await respond.json()
+                    return leader_list['data']['list']
 
         # if response.get('data') and response.get('data').get('list') and len(response.get('data').get('list')) > 0:
         #     for item in response.get('data').get('list'):
@@ -69,5 +71,41 @@ class Binance(object):
         #                         item['sharpRatio'], item['winRate'])
         #         leader_list.append(leader)
 
-    async def get_laeder_list(self):
+    async def leader_4_all_page(self):
+        headers = {
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36 SLBrowser/9.0.0.10191 SLBChan/25',
+        }
+
+        json_data = {
+            'pageNumber': 1,
+            'pageSize': 50,
+            'timeRange': '7D',
+            'dataType': 'PNL',
+            'favoriteOnly': False,
+            'hideFull': True,
+            'nickname': '',
+            'order': 'DESC',
+            'userAsset': 0.25143313,
+            'portfolioType': 'PUBLIC',
+        }
+
+        url = 'https://www.binance.com/bapi/futures/v1/friendly/future/copy-trade/home-page/query-list'
+        response = requests.post(url, headers=headers, json=json_data).json()
+        total_page = int(int(response['data']['total']) / 50) + 1
+
+        tasks = []
+        for page in range(1, total_page + 1):
+            task = asyncio.create_task(self.leader_4_a_page(page))
+            tasks.append(task)
+        await asyncio.wait(tasks)
+        result = []
+        for task in tasks:
+            result.extend(task.result())
+        print(result)
+
+    def get_leader_list(self):
+        # asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        # asyncio.run(self.leader_4_all_page())
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(self.leader_4_all_page())
 

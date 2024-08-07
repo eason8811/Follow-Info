@@ -2,6 +2,7 @@ import re
 import json
 import time
 import requests
+import random
 
 
 def get_proxies(page_amount, offset):
@@ -18,8 +19,8 @@ def get_proxies(page_amount, offset):
         regx = r"const fpsList = (.*);"
         origin_proxies_list = json.loads(re.findall(regx, response.text)[0])
         proxies_list = list(map(lambda x: {
-            'http:': f'http://{x["ip"]}:{x["port"]}',
-            'https:': f'https://{x["ip"]}:{x["port"]}'
+            'http': f'http://{x["ip"]}:{x["port"]}',
+            'https': f'https://{x["ip"]}:{x["port"]}'
         }, origin_proxies_list))
         result.extend(proxies_list)
     return result
@@ -27,4 +28,4 @@ def get_proxies(page_amount, offset):
 
 if __name__ == '__main__':
     proxies = get_proxies(4, 3)
-    print(proxies)
+    print(random.choice(proxies)['http'])
