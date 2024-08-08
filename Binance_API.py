@@ -36,7 +36,7 @@ class Binance(object):
         # self.proxies = get_proxies(4, 4)
         pass
 
-    async def leader_4_a_page(self, page_number):
+    async def __leader_4_a_page(self, page_number):
         headers = {
             'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36 SLBrowser/9.0.0.10191 SLBChan/25',
         }
@@ -64,14 +64,7 @@ class Binance(object):
                     leader_list = await respond.json()
                     return leader_list['data']['list']
 
-        # if response.get('data') and response.get('data').get('list') and len(response.get('data').get('list')) > 0:
-        #     for item in response.get('data').get('list'):
-        #         leader = Leader(item['aum'], item['currentCopyCount'], item['leadPortfolioId'],
-        #                         item['maxCopyCount'], item['mdd'], item['nickname'], item['pnl'], item['roi'],
-        #                         item['sharpRatio'], item['winRate'])
-        #         leader_list.append(leader)
-
-    async def leader_4_all_page(self):
+    async def __leader_4_all_page(self):
         headers = {
             'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36 SLBrowser/9.0.0.10191 SLBChan/25',
         }
@@ -95,17 +88,96 @@ class Binance(object):
 
         tasks = []
         for page in range(1, total_page + 1):
-            task = asyncio.create_task(self.leader_4_a_page(page))
+            task = asyncio.create_task(self.__leader_4_a_page(page))
             tasks.append(task)
         await asyncio.wait(tasks)
-        result = []
+        leader_list = []
         for task in tasks:
-            result.extend(task.result())
-        print(result)
+            leader_list.extend(task.result())
+
+        result = []
+        for item in leader_list:
+            leader = Leader(item['aum'], item['currentCopyCount'], item['leadPortfolioId'],
+                            item['maxCopyCount'], item['mdd'], item['nickname'], item['pnl'], item['roi'],
+                            item['sharpRatio'], item['winRate'])
+            result.append(leader)
+        return result
 
     def get_leader_list(self):
-        # asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-        # asyncio.run(self.leader_4_all_page())
         loop = asyncio.get_event_loop()
-        loop.run_until_complete(self.leader_4_all_page())
+        return loop.run_until_complete(self.__leader_4_all_page())
 
+    async def __position_4_a_page(self, page_number, symbol, leader_id):
+        headers = {
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36 SLBrowser/9.0.0.10191 SLBChan/25',
+        }
+
+        json_data = {
+            'pageNumber': page_number,
+            'pageSize': 50,
+            'portfolioId': leader_id,
+            'sort': 'OPENING',
+        }
+
+        url = 'https://www.binance.com/bapi/futures/v1/friendly/future/copy-trade/lead-portfolio/position-history'
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=json_data, headers=headers) as respond:
+                if respond.status == 200:
+                    result = []
+                    position_list = await respond.json()
+                    position_list = position_list['data']['list']
+                    for position in position_list:
+                        if position['symbol'] == symbol:
+                            result.append(position)
+                    return result
+
+    async def __get_total_postion_page(self, leader):
+        headers = {
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36 SLBrowser/9.0.0.10191 SLBChan/25',
+        }
+        url = 'https://www.binance.com/bapi/futures/v1/friendly/future/copy-trade/lead-portfolio/position-history'
+
+        json_data = {
+            'pageNumber': 1,
+            'pageSize': 50,
+            'portfolioId': leader.leader_id,
+            'sort': 'OPENING',
+        }
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=json_data, headers=headers) as respond:
+                if respond.status == 200:
+                    respond_json = await respond.json()
+                    total_page = int(int(respond_json['data']['total']) / 50) + 1
+                    return total_page
+
+    async def __position_4_all_leader(self, leader_list, symbol):
+        tasks = []
+        for leader in leader_list:
+            print(f'total {leader.leader_id} 开始')
+            task = asyncio.create_task(self.__get_total_postion_page(leader))
+            tasks.append(task)
+        await asyncio.wait(tasks)
+        total_page_list = []
+        for task in tasks:
+            total_page_list.append(task.result())
+
+        result = []
+        for i in range(len(leader_list)):
+            leader = leader_list[i]
+            total_page = total_page_list[i]
+            tasks = []
+            for page in range(1, total_page + 1):
+                print(f'total {leader.leader_id} page {page} 开始')
+                task = asyncio.create_task(self.__position_4_a_page(page, symbol, leader.leader_id))
+                tasks.append(task)
+            await asyncio.wait(tasks)
+            position_list = []
+            for task in tasks:
+                position_list.extend(task.result())
+            result.extend(position_list)
+        return result
+
+    def get_all_position_symbol(self, leader_list, symbol):
+        loop = asyncio.get_event_loop()
+        return loop.run_until_complete(self.__position_4_all_leader(leader_list, symbol))
