@@ -1,3 +1,5 @@
+import time
+
 import requests
 import asyncio
 import aiohttp
@@ -153,14 +155,17 @@ class Binance(object):
 
     async def __position_4_all_leader(self, leader_list, symbol):
         tasks = []
+
+        total_page_list = []
         for leader in leader_list:
             print(f'total {leader.leader_id} 开始')
             task = asyncio.create_task(self.__get_total_postion_page(leader))
             tasks.append(task)
         await asyncio.wait(tasks)
-        total_page_list = []
         for task in tasks:
             total_page_list.append(task.result())
+
+        print(total_page_list)
 
         result = []
         for i in range(len(leader_list)):
