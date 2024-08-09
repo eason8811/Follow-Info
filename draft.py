@@ -8,4 +8,7 @@ binance = Binance()
 leader_list = binance.get_leader_list()
 # print(leader_list)
 
-print(binance.get_all_position_symbol(leader_list, 'BTCUSDT'))
+position_list = binance.get_all_position_symbol(leader_list, 'BTCUSDT')
+print(position_list)
+with open('position_list.json', 'w') as f:
+    f.write(position_list)

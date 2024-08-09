@@ -133,6 +133,8 @@ class Binance(object):
                         if position['symbol'] == symbol:
                             result.append(position)
                     return result
+                else:
+                    print(await respond.text())
 
     async def __get_total_postion_page(self, leader):
         headers = {
@@ -153,34 +155,62 @@ class Binance(object):
                     total_page = int(int(respond_json['data']['total']) / 50) + 1
                     return total_page
 
-    async def __position_4_all_leader(self, leader_list, symbol):
+    async def __position_4_a_leader(self, symbol, i, leader_list, total_page_list):
         tasks = []
-
-        total_page_list = []
-        for leader in leader_list:
-            print(f'total {leader.leader_id} 开始')
-            task = asyncio.create_task(self.__get_total_postion_page(leader))
+        total_page = total_page_list[i]
+        leader = leader_list[i]
+        for page in range(1, total_page + 1):
+            # print(f'total {i + 1} page {page} 开始')
+            task = asyncio.create_task(self.__position_4_a_page(page, symbol, leader.leader_id))
             tasks.append(task)
         await asyncio.wait(tasks)
+        position_list = []
         for task in tasks:
-            total_page_list.append(task.result())
+            position_list.extend(task.result())
+        return position_list
+
+    async def __position_4_all_leader(self, leader_list, symbol):
+        total_page_list = []
+        for j in range(0, len(leader_list), int(len(leader_list) / 20)):
+            if j + int(len(leader_list) / 20) < len(leader_list):
+                leader_slice = leader_list[j:j + int(len(leader_list) / 20)]
+            else:
+                leader_slice = leader_list[j:]
+            tasks = []
+            for leader in leader_slice:
+                print(f'total {leader_list.index(leader) + 1} 开始')
+                task = asyncio.create_task(self.__get_total_postion_page(leader))
+                tasks.append(task)
+            await asyncio.wait(tasks)
+            for task in tasks:
+                total_page_list.append(task.result())
 
         print(total_page_list)
 
         result = []
-        for i in range(len(leader_list)):
-            leader = leader_list[i]
-            total_page = total_page_list[i]
+        start = 0
+        end = 0
+        while end < len(leader_list):
+            if end == 0:
+                page_count = 0
+                while page_count < 300:
+                    page_count += total_page_list[end]
+                    end += 1
+            else:
+                start = end
+                page_count = 0
+                while page_count < 300:
+                    page_count += total_page_list[end]
+                    end += 1
             tasks = []
-            for page in range(1, total_page + 1):
-                print(f'total {leader.leader_id} page {page} 开始')
-                task = asyncio.create_task(self.__position_4_a_page(page, symbol, leader.leader_id))
+            time.sleep(3)
+            print(f'{end - start} 个 leader 共 {page_count} 页')
+            for i in range(start, end):
+                task = asyncio.create_task(self.__position_4_a_leader(symbol, i, leader_list, total_page_list))
                 tasks.append(task)
             await asyncio.wait(tasks)
-            position_list = []
             for task in tasks:
-                position_list.extend(task.result())
-            result.extend(position_list)
+                result.extend(task.result())
         return result
 
     def get_all_position_symbol(self, leader_list, symbol):

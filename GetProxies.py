@@ -20,7 +20,7 @@ def get_proxies(page_amount, offset):
         origin_proxies_list = json.loads(re.findall(regx, response.text)[0])
         proxies_list = list(map(lambda x: {
             'http': f'http://{x["ip"]}:{x["port"]}',
-            'https': f'https://{x["ip"]}:{x["port"]}'
+            'https': f'http://{x["ip"]}:{x["port"]}'
         }, origin_proxies_list))
         result.extend(proxies_list)
     return result
