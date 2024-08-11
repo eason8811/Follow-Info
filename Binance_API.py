@@ -35,7 +35,8 @@ class Leader:
 
 class Binance(object):
     def __init__(self):
-        # self.proxies = get_proxies(4, 4)
+        # self.proxies = get_proxies(15, 4)
+        # print(self.proxies)
         pass
 
     async def __leader_4_a_page(self, page_number):
@@ -123,18 +124,32 @@ class Binance(object):
 
         url = 'https://www.binance.com/bapi/futures/v1/friendly/future/copy-trade/lead-portfolio/position-history'
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=json_data, headers=headers) as respond:
-                if respond.status == 200:
-                    result = []
-                    position_list = await respond.json()
-                    position_list = position_list['data']['list']
-                    for position in position_list:
-                        if position['symbol'] == symbol:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, json=json_data, headers=headers) as respond:
+                    if respond.status == 200:
+                        result = []
+                        position_list = await respond.json()
+                        position_list = position_list['data']['list']
+                        for position in position_list:
+                            # if position['symbol'] == symbol:
+                            #     result.append(position)
                             result.append(position)
-                    return result
-                else:
-                    print(await respond.text())
+                        return result
+                    else:
+                        # print(await respond.text())
+                        print(json_data)
+                        await asyncio.sleep(15)
+                        task = asyncio.create_task(self.__position_4_a_page(page_number, symbol, leader_id))
+                        await asyncio.wait([task,])
+                        return task.result()
+        except Exception as exc:
+            print(exc)
+            print(json_data)
+            await asyncio.sleep(15)
+            task = asyncio.create_task(self.__position_4_a_page(page_number, symbol, leader_id))
+            await asyncio.wait([task, ])
+            return task.result()
 
     async def __get_total_postion_page(self, leader):
         headers = {
@@ -190,16 +205,17 @@ class Binance(object):
         result = []
         start = 0
         end = 0
+        start_time = time.mktime(time.localtime())
         while end < len(leader_list):
             if end == 0:
                 page_count = 0
-                while page_count < 300:
+                while page_count < 1000 and end < len(leader_list):
                     page_count += total_page_list[end]
                     end += 1
             else:
                 start = end
                 page_count = 0
-                while page_count < 300:
+                while page_count < 1000 and end < len(leader_list):
                     page_count += total_page_list[end]
                     end += 1
             tasks = []
@@ -209,8 +225,14 @@ class Binance(object):
                 task = asyncio.create_task(self.__position_4_a_leader(symbol, i, leader_list, total_page_list))
                 tasks.append(task)
             await asyncio.wait(tasks)
-            for task in tasks:
-                result.extend(task.result())
+            print(f'{end} 个 leader 共 {sum(total_page_list[:end])} 页 已完成！')
+            # time.sleep(15)
+            try:
+                for task in tasks:
+                    result.extend(task.result())
+            except:
+                print(f'已进行: {sum(total_page_list[:end])}页  将重试!')  # 3921
+        print(f'总使用时间为{time.mktime(time.localtime()) - start_time} s')
         return result
 
     def get_all_position_symbol(self, leader_list, symbol):
