@@ -1,6 +1,7 @@
 import asyncio
-
 import aiohttp
+import requests_async as requests
+
 
 async def main():
     headers = {
@@ -14,10 +15,10 @@ async def main():
         'portfolioId': '4046571179165909504',
         'sort': 'OPENING',
     }
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, json=json_data, headers=headers,
-                                proxy='http://13.229.203.40:8080') as respond:
-            print(await respond.text())
+    respond = requests.post(url, headers=headers, json=json_data)
+    result = await respond
+    print(result.text)
+
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
