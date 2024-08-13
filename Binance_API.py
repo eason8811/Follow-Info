@@ -1,5 +1,5 @@
 import time
-
+import requests_async
 import requests
 import asyncio
 import aiohttp
@@ -32,8 +32,23 @@ class Leader:
         self.sharp_ratio = sharp_ratio
         self.win_rate = win_rate
 
+    def __str__(self):
+        str_result = {
+            'aum': self.aum,
+            'current_copy_count': self.current_copy_count,
+            'leader_id': self.leader_id,
+            'max_count': self.max_count,
+            'mdd': self.mdd,
+            'name': self.name,
+            'pnl': self.pnl,
+            'roi': self.roi,
+            'sharp_ratio': self.sharp_ratio,
+            'win_rate': self.win_rate
+        }
+        return f'{str_result}\n'
 
-class Binance(object):
+
+class Binance:
     def __init__(self):
         # self.proxies = get_proxies(15, 4)
         # print(self.proxies)
@@ -59,13 +74,11 @@ class Binance(object):
 
         url = 'https://www.binance.com/bapi/futures/v1/friendly/future/copy-trade/home-page/query-list'
 
-        async with aiohttp.ClientSession() as session:
-            # async with session.post(url, json=json_data, headers=headers,
-            #                         proxy=random.choice(self.proxies)['http']) as respond:
-            async with session.post(url, json=json_data, headers=headers) as respond:
-                if respond.status == 200:
-                    leader_list = await respond.json()
-                    return leader_list['data']['list']
+        respond = requests_async.post(url, json=json_data, headers=headers)
+        respond = await respond
+        if respond.status_code == 200:
+            leader_list = respond.json()
+            return leader_list['data']['list']
 
     async def __leader_4_all_page(self):
         headers = {
@@ -139,17 +152,31 @@ class Binance(object):
                     else:
                         # print(await respond.text())
                         print(json_data)
-                        await asyncio.sleep(15)
+                        await asyncio.sleep(5)
                         task = asyncio.create_task(self.__position_4_a_page(page_number, symbol, leader_id))
-                        await asyncio.wait([task,])
+                        await asyncio.wait([task, ])
                         return task.result()
         except Exception as exc:
             print(exc)
             print(json_data)
-            await asyncio.sleep(15)
+            await asyncio.sleep(5)
             task = asyncio.create_task(self.__position_4_a_page(page_number, symbol, leader_id))
             await asyncio.wait([task, ])
             return task.result()
+
+    async def __position_4_a_leader(self, symbol, i, leader_list, total_page_list):
+        tasks = []
+        total_page = total_page_list[i]
+        leader = leader_list[i]
+        for page in range(1, total_page + 1):
+            # print(f'total {i + 1} page {page} 开始')
+            task = asyncio.create_task(self.__position_4_a_page(page, symbol, leader.leader_id))
+            tasks.append(task)
+        await asyncio.wait(tasks)
+        position_list = []
+        for task in tasks:
+            position_list.extend(task.result())
+        return position_list
 
     async def __get_total_postion_page(self, leader):
         headers = {
@@ -169,20 +196,6 @@ class Binance(object):
                     respond_json = await respond.json()
                     total_page = int(int(respond_json['data']['total']) / 50) + 1
                     return total_page
-
-    async def __position_4_a_leader(self, symbol, i, leader_list, total_page_list):
-        tasks = []
-        total_page = total_page_list[i]
-        leader = leader_list[i]
-        for page in range(1, total_page + 1):
-            # print(f'total {i + 1} page {page} 开始')
-            task = asyncio.create_task(self.__position_4_a_page(page, symbol, leader.leader_id))
-            tasks.append(task)
-        await asyncio.wait(tasks)
-        position_list = []
-        for task in tasks:
-            position_list.extend(task.result())
-        return position_list
 
     async def __position_4_all_leader(self, leader_list, symbol):
         total_page_list = []
@@ -209,13 +222,13 @@ class Binance(object):
         while end < len(leader_list):
             if end == 0:
                 page_count = 0
-                while page_count < 1000 and end < len(leader_list):
+                while page_count < 200 and end < len(leader_list):
                     page_count += total_page_list[end]
                     end += 1
             else:
                 start = end
                 page_count = 0
-                while page_count < 1000 and end < len(leader_list):
+                while page_count < 200 and end < len(leader_list):
                     page_count += total_page_list[end]
                     end += 1
             tasks = []
