@@ -5,6 +5,7 @@ import asyncio
 import aiohttp
 import random
 from GetProxies import get_proxies
+from BinanceAPI import BinanceAPI
 
 
 class Leader:
@@ -251,3 +252,48 @@ class Binance:
     def get_all_position_symbol(self, leader_list, symbol):
         loop = asyncio.get_event_loop()
         return loop.run_until_complete(self.__position_4_all_leader(leader_list, symbol))
+
+    def get_kline_symbol(self, symbol, interval, limit, end_time=None):
+        if end_time is None:
+            end_time = int(time.time() * 1000)
+        api_key = 'i7F6rx3Tcz6eJlSVzBc4dpV6qyszCiCOIpSz7gv9mdyq9UjVizrlu2kkmlvUIJSw'
+        secret_key = 'mwU7KCworFZ17WIOqRuGaRmtwT3nnUDBhtg8HQf9CHFB7KVSxev0Rwym5mgfWjDx'
+        binance = BinanceAPI('https://fapi.binance.com', api_key, secret_key)
+        klines_data = []
+        while limit > 1500:
+            body = {
+                'symbol': symbol,
+                'interval': interval,
+                'endTime': end_time,
+                'limit': 1500,
+            }
+            respond = binance.api('GET', '/fapi/v1/klines', body)
+            for item in respond:
+                kline = {
+                    'time': item[0],
+                    'open': float(item[1]),
+                    'high': float(item[2]),
+                    'low': float(item[3]),
+                    'close': float(item[4]),
+                }
+                klines_data.append(kline)
+            end_time -= 1500*15*60*1000
+            limit -= 1500
+        else:
+            body = {
+                'symbol': symbol,
+                'interval': interval,
+                'endTime': end_time,
+                'limit': limit,
+            }
+            respond = binance.api('GET', '/fapi/v1/klines', body)
+            for item in respond:
+                kline = {
+                    'time': item[0],
+                    'open': float(item[1]),
+                    'high': float(item[2]),
+                    'low': float(item[3]),
+                    'close': float(item[4]),
+                }
+                klines_data.append(kline)
+        return klines_data
