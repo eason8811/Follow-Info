@@ -199,10 +199,11 @@ class Binance:
                             total_page = int(int(respond_json['data']['total']) / 50) + 1
                             return total_page
                         else:
-                            print(respond.text())
+                            print(await respond.text())
                             time.sleep(15)
                             continue
                     except:
+                        print(await respond.text())
                         time.sleep(15)
                         continue
 
