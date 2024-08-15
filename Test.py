@@ -16,13 +16,13 @@ def normalize(lst):
 
 binance = Binance()
 
-# leader_list = binance.get_leader_list()
-# # print(leader_list)
-#
-# position_list = binance.get_all_position_symbol(leader_list, 'BTCUSDT')
-# # print(position_list)
-# with open('position_list.json', 'w') as f:
-#     f.write(json.dumps(position_list))
+leader_list = binance.get_leader_list()
+# print(leader_list)
+
+position_list = binance.get_all_position_symbol(leader_list, 'BTCUSDT')
+# print(position_list)
+with open('position_list.json', 'w') as f:
+    f.write(json.dumps(position_list))
 
 with open('position_list.json', 'r') as f:
     position_list = json.loads(f.read())

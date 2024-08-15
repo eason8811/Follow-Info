@@ -57,7 +57,7 @@ class Binance:
 
     async def __leader_4_a_page(self, page_number):
         headers = {
-            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36 SLBrowser/9.0.0.10191 SLBChan/25',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36 Edg/127.0.0.0',
         }
 
         json_data = {
@@ -83,7 +83,7 @@ class Binance:
 
     async def __leader_4_all_page(self):
         headers = {
-            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36 SLBrowser/9.0.0.10191 SLBChan/25',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36 Edg/127.0.0.0',
         }
 
         json_data = {
@@ -126,7 +126,7 @@ class Binance:
 
     async def __position_4_a_page(self, page_number, symbol, leader_id):
         headers = {
-            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36 SLBrowser/9.0.0.10191 SLBChan/25',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36 Edg/127.0.0.0',
         }
 
         json_data = {
@@ -136,7 +136,7 @@ class Binance:
             'sort': 'OPENING',
         }
 
-        url = 'https://www.binance.com/bapi/futures/v1/friendly/future/copy-trade/lead-portfolio/position-history'
+        url = 'https://www.binance.com/bapi/futures/v1/friendly/future/copy-trade/lead-portfolio/trade-history'
 
         try:
             async with aiohttp.ClientSession() as session:
@@ -179,24 +179,32 @@ class Binance:
             position_list.extend(task.result())
         return position_list
 
-    async def __get_total_postion_page(self, leader):
+    async def __get_total_position_page(self, leader):
         headers = {
-            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36 SLBrowser/9.0.0.10191 SLBChan/25',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36 Edg/127.0.0.0',
         }
-        url = 'https://www.binance.com/bapi/futures/v1/friendly/future/copy-trade/lead-portfolio/position-history'
+        url = 'https://www.binance.com/bapi/futures/v1/friendly/future/copy-trade/lead-portfolio/trade-history'
 
         json_data = {
             'pageNumber': 1,
             'pageSize': 50,
             'portfolioId': leader.leader_id,
-            'sort': 'OPENING',
         }
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=json_data, headers=headers) as respond:
-                if respond.status == 200:
-                    respond_json = await respond.json()
-                    total_page = int(int(respond_json['data']['total']) / 50) + 1
-                    return total_page
+        while True:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, json=json_data, headers=headers) as respond:
+                    try:
+                        if respond.status == 200:
+                            respond_json = await respond.json()
+                            total_page = int(int(respond_json['data']['total']) / 50) + 1
+                            return total_page
+                        else:
+                            print(respond.text())
+                            time.sleep(15)
+                            continue
+                    except:
+                        time.sleep(15)
+                        continue
 
     async def __position_4_all_leader(self, leader_list, symbol):
         total_page_list = []
@@ -208,7 +216,7 @@ class Binance:
             tasks = []
             for leader in leader_slice:
                 print(f'total {leader_list.index(leader) + 1} 开始')
-                task = asyncio.create_task(self.__get_total_postion_page(leader))
+                task = asyncio.create_task(self.__get_total_position_page(leader))
                 tasks.append(task)
             await asyncio.wait(tasks)
             for task in tasks:
