@@ -1,20 +1,28 @@
 import json
 import time
 import matplotlib.pyplot as plt
+import numpy as np
 import requests
 import random
 from tqdm import tqdm
-from Binance_API import Binance
+from BinanceFollowAPI import Binance
+
+
+def normalize(lst):
+    lst = np.array(lst)
+    result = (lst - lst.min()) / (lst.max() - lst.min())
+    return result
+
 
 binance = Binance()
 
-# leader_list = binance.get_leader_list()
-# # print(leader_list)
-#
-# position_list = binance.get_all_position_symbol(leader_list, 'BTCUSDT')
-# # print(position_list)
-# with open('position_list.json', 'w') as f:
-#     f.write(json.dumps(position_list))
+leader_list = binance.get_leader_list()
+# print(leader_list)
+
+position_list = binance.get_all_position_symbol(leader_list, 'BTCUSDT')
+# print(position_list)
+with open('position_list.json', 'w') as f:
+    f.write(json.dumps(position_list))
 
 with open('position_list.json', 'r') as f:
     position_list = json.loads(f.read())
@@ -52,10 +60,51 @@ for position in tqdm(position_list_symbol):
 print(position_amount)
 print(position_count)
 
-plt.plot(list(position_amount.keys())[-2880:], [position_amount[i][0] for i in position_amount.keys()][-2880:], label='long_amount')
-plt.plot(list(position_amount.keys())[-2880:], [position_amount[i][1] for i in position_amount.keys()][-2880:], label='short_amount')
-plt.plot(list(position_count.keys())[-2880:], [position_count[i][0]*100000 for i in position_count.keys()][-2880:], label='long_amount')
-plt.plot(list(position_count.keys())[-2880:], [position_count[i][1]*100000 for i in position_count.keys()][-2880:], label='short_amount')
-plt.ticklabel_format(useOffset=False, style='plain')
+fig, ax1 = plt.subplots()
+ax2 = ax1.twinx()
+
+klines_data = binance.get_kline_symbol('BTCUSDT', '15m', 2880, 1722996900000)
+color_list = []
+# for kline in klines_data:
+#     color = 'green' if kline['close'] > kline['open'] else 'red'
+#     color_list.append(color)
+#     ax1.vlines(x=kline['time'], ymin=kline['low'], ymax=kline['high'], color=color)
+# ax1.bar(x=list(map(lambda x: x['time'], klines_data)),
+#         height=list(map(lambda x: abs(x['close']-x['open']), klines_data)),
+#         bottom=list(map(lambda x: min(x['open'], x['close']), klines_data)),
+#         color=color_list, width=15*60*1000)
+
+
+# ax2.plot(list(position_amount.keys())[-2880-672:-672], [position_amount[i][0] for i in position_amount.keys()][-2880-672:-672], label='long_amount')
+# ax2.plot(list(position_amount.keys())[-2880-672:-672], [position_amount[i][1] for i in position_amount.keys()][-2880-672:-672], label='short_amount')
+# ax2.plot(list(position_count.keys())[-2880-672:-672], [position_count[i][0]*30000 for i in position_count.keys()][-2880-672:-672], label='long_count')
+# ax2.plot(list(position_count.keys())[-2880-672:-672], [position_count[i][1]*30000 for i in position_count.keys()][-2880-672:-672], label='short_count')
+# plt.legend()
+# plt.ticklabel_format(useOffset=False, style='plain')
+# ax1.grid(axis='both')
+# plt.show()
+
+
+close_line = np.array(list(map(lambda x: x['close'], klines_data)))
+long_amount = np.array([position_amount[i][0] for i in position_amount.keys()][-2880 - 672:-672])
+short_amount = np.array([position_amount[i][1] for i in position_amount.keys()][-2880 - 672:-672])
+long_count = np.array([position_count[i][0] * 30000 for i in position_count.keys()][-2880 - 672:-672])
+short_count = np.array([position_count[i][1] * 30000 for i in position_count.keys()][-2880 - 672:-672])
+close_line = normalize(close_line)
+long_amount = normalize(long_amount)
+short_amount = normalize(short_amount)
+long_count = normalize(long_count)
+short_count = normalize(short_count)
+ax2.plot(list(position_amount.keys())[-2880 - 672:-672], close_line, label='close')
+ax2.plot(list(position_amount.keys())[-2880 - 672:-672], long_amount, label='long_amount')
+# ax2.plot(list(position_amount.keys())[-2880 - 672:-672], short_amount, label='short_amount')
+# ax2.plot(list(position_count.keys())[-2880 - 672:-672], long_count, label='long_count')
+# ax2.plot(list(position_count.keys())[-2880 - 672:-672], short_count, label='short_count')
+ax2.plot(list(position_amount.keys())[-2880 - 672:-672], close_line - long_amount, label='close_long_amount')
+# ax2.plot(list(position_amount.keys())[-2880 - 672:-672], close_line - short_amount, label='close_short_amount')
+# ax2.plot(list(position_count.keys())[-2880 - 672:-672], close_line - long_count, label='close_long_count')
+# ax2.plot(list(position_count.keys())[-2880 - 672:-672], close_line - short_count, label='close_short_count')
 plt.legend()
+plt.ticklabel_format(useOffset=False, style='plain')
+ax1.grid(axis='both')
 plt.show()

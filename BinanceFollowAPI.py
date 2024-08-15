@@ -5,6 +5,7 @@ import asyncio
 import aiohttp
 import random
 from GetProxies import get_proxies
+from BinanceAPI import BinanceAPI
 
 
 class Leader:
@@ -56,7 +57,7 @@ class Binance:
 
     async def __leader_4_a_page(self, page_number):
         headers = {
-            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36 SLBrowser/9.0.0.10191 SLBChan/25',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36 Edg/127.0.0.0',
         }
 
         json_data = {
@@ -82,7 +83,7 @@ class Binance:
 
     async def __leader_4_all_page(self):
         headers = {
-            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36 SLBrowser/9.0.0.10191 SLBChan/25',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36 Edg/127.0.0.0',
         }
 
         json_data = {
@@ -125,7 +126,7 @@ class Binance:
 
     async def __position_4_a_page(self, page_number, symbol, leader_id):
         headers = {
-            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36 SLBrowser/9.0.0.10191 SLBChan/25',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36 Edg/127.0.0.0',
         }
 
         json_data = {
@@ -135,7 +136,7 @@ class Binance:
             'sort': 'OPENING',
         }
 
-        url = 'https://www.binance.com/bapi/futures/v1/friendly/future/copy-trade/lead-portfolio/position-history'
+        url = 'https://www.binance.com/bapi/futures/v1/friendly/future/copy-trade/lead-portfolio/trade-history'
 
         try:
             async with aiohttp.ClientSession() as session:
@@ -178,24 +179,33 @@ class Binance:
             position_list.extend(task.result())
         return position_list
 
-    async def __get_total_postion_page(self, leader):
+    async def __get_total_position_page(self, leader):
         headers = {
-            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36 SLBrowser/9.0.0.10191 SLBChan/25',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36 Edg/127.0.0.0',
         }
-        url = 'https://www.binance.com/bapi/futures/v1/friendly/future/copy-trade/lead-portfolio/position-history'
+        url = 'https://www.binance.com/bapi/futures/v1/friendly/future/copy-trade/lead-portfolio/trade-history'
 
         json_data = {
             'pageNumber': 1,
             'pageSize': 50,
             'portfolioId': leader.leader_id,
-            'sort': 'OPENING',
         }
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=json_data, headers=headers) as respond:
-                if respond.status == 200:
-                    respond_json = await respond.json()
-                    total_page = int(int(respond_json['data']['total']) / 50) + 1
-                    return total_page
+        while True:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, json=json_data, headers=headers) as respond:
+                    try:
+                        if respond.status == 200:
+                            respond_json = await respond.json()
+                            total_page = int(int(respond_json['data']['total']) / 50) + 1
+                            return total_page
+                        else:
+                            print(await respond.text())
+                            time.sleep(15)
+                            continue
+                    except:
+                        print(await respond.text())
+                        time.sleep(15)
+                        continue
 
     async def __position_4_all_leader(self, leader_list, symbol):
         total_page_list = []
@@ -207,7 +217,7 @@ class Binance:
             tasks = []
             for leader in leader_slice:
                 print(f'total {leader_list.index(leader) + 1} 开始')
-                task = asyncio.create_task(self.__get_total_postion_page(leader))
+                task = asyncio.create_task(self.__get_total_position_page(leader))
                 tasks.append(task)
             await asyncio.wait(tasks)
             for task in tasks:
@@ -251,3 +261,48 @@ class Binance:
     def get_all_position_symbol(self, leader_list, symbol):
         loop = asyncio.get_event_loop()
         return loop.run_until_complete(self.__position_4_all_leader(leader_list, symbol))
+
+    def get_kline_symbol(self, symbol, interval, limit, end_time=None):
+        if end_time is None:
+            end_time = int(time.time() * 1000)
+        api_key = 'i7F6rx3Tcz6eJlSVzBc4dpV6qyszCiCOIpSz7gv9mdyq9UjVizrlu2kkmlvUIJSw'
+        secret_key = 'mwU7KCworFZ17WIOqRuGaRmtwT3nnUDBhtg8HQf9CHFB7KVSxev0Rwym5mgfWjDx'
+        binance = BinanceAPI('https://fapi.binance.com', api_key, secret_key)
+        klines_data = []
+        while limit > 1500:
+            body = {
+                'symbol': symbol,
+                'interval': interval,
+                'endTime': end_time,
+                'limit': 1500,
+            }
+            respond = binance.api('GET', '/fapi/v1/klines', body)
+            for item in respond:
+                kline = {
+                    'time': item[0],
+                    'open': float(item[1]),
+                    'high': float(item[2]),
+                    'low': float(item[3]),
+                    'close': float(item[4]),
+                }
+                klines_data.append(kline)
+            end_time -= 1500*15*60*1000
+            limit -= 1500
+        else:
+            body = {
+                'symbol': symbol,
+                'interval': interval,
+                'endTime': end_time,
+                'limit': limit,
+            }
+            respond = binance.api('GET', '/fapi/v1/klines', body)
+            for item in respond:
+                kline = {
+                    'time': item[0],
+                    'open': float(item[1]),
+                    'high': float(item[2]),
+                    'low': float(item[3]),
+                    'close': float(item[4]),
+                }
+                klines_data.append(kline)
+        return klines_data
