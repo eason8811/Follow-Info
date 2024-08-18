@@ -34,11 +34,20 @@ while amount > 0:
         'limit': min(500, amount)
     }
     respond = u_api.api('GET', '/futures/data/topLongShortPositionRatio', body)
+    for i in range(len(respond)):
+        respond[i]['longShortRatio'] = float(respond[i]['longShortRatio'])
+        respond[i]['longAccount'] = float(respond[i]['longAccount'])
+        respond[i]['shortAccount'] = float(respond[i]['shortAccount'])
     top_position_ratio.extend(respond)
     respond = u_api.api('GET', '/futures/data/topLongShortAccountRatio', body)
+    for i in range(len(respond)):
+        respond[i]['longShortRatio'] = float(respond[i]['longShortRatio'])
+        respond[i]['longAccount'] = float(respond[i]['longAccount'])
+        respond[i]['shortAccount'] = float(respond[i]['shortAccount'])
     top_account_ratio.extend(respond)
     print(f'\r{round((2880 - amount) / 2880, 5) * 100}%', end='')
     amount -= 500
+print('\r大数据获取完成')
 
 klines = []
 amount = kline_amount
@@ -60,8 +69,10 @@ while amount > 0:
             'close': float(item[4]),
         }
         klines.append(kline)
+    print(f'\r{round((2880 - amount) / 2880, 5) * 100}%', end='')
     amount -= 1500
     end_time -= period * 60 * 1000
+print('\rK线数据获取完成')
 
 close_data = normalize(list(map(lambda x: x['close'], klines)))  # 收盘价
 long_short_position_ratio = normalize(list(map(lambda x: x['longShortRatio'], top_position_ratio)))  # 大户多空持仓量比值
