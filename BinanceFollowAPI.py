@@ -148,7 +148,7 @@ class Binance:
                             position_list = position_list['data']['list']
                             for position in position_list:
                                 result.append(position)
-                            return result
+                            return {leader_id: result}
                         else:
                             # print(respond.status)
                             # print(f"Retry-After={respond.headers}")
@@ -231,11 +231,13 @@ class Binance:
 
         print(total_page_list)
 
-        result = []
+        all_position_result = {}
+        for leader in leader_list:
+            all_position_result[leader.leader_id] = []
         start = 0
         end = 0
         start_time = time.mktime(time.localtime())
-        every_time_page_amount = 500
+        every_time_page_amount = 200
         page_count_list = [1 for _ in range(len(total_page_list))]
         current_leader_index = 0
 
@@ -256,13 +258,13 @@ class Binance:
                 page_count_list[current_leader_index] += 1
                 current_leader_index += 1
             await asyncio.wait(tasks)
-            a_page_result = []
+
             for task in tasks:
-                a_page_result.extend(task.result())
-            result.extend(a_page_result)
+                leader_id = list(task.result().keys())[0]
+                all_position_result[leader_id].extend(task.result()[leader_id])
             loop_count += 1
         print(f'总使用时间为{time.mktime(time.localtime()) - start_time} s')
-        return result
+        return all_position_result
 
 
         # while end < len(leader_list):
