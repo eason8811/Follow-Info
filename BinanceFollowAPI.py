@@ -124,7 +124,7 @@ class Binance:
         loop = asyncio.get_event_loop()
         return loop.run_until_complete(self.__leader_4_all_page())
 
-    async def __position_4_a_page(self, page_number, symbol, leader_id):
+    async def __position_4_a_page(self, page_number, leader_id):
         headers = {
             'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36 Edg/127.0.0.0',
         }
@@ -133,45 +133,48 @@ class Binance:
             'pageNumber': page_number,
             'pageSize': 50,
             'portfolioId': leader_id,
-            'sort': 'OPENING',
         }
 
         url = 'https://www.binance.com/bapi/futures/v1/friendly/future/copy-trade/lead-portfolio/trade-history'
 
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(url, json=json_data, headers=headers) as respond:
-                    if respond.status == 200:
-                        result = []
-                        position_list = await respond.json()
-                        position_list = position_list['data']['list']
-                        for position in position_list:
-                            # if position['symbol'] == symbol:
-                            #     result.append(position)
-                            result.append(position)
-                        return result
-                    else:
-                        # print(await respond.text())
-                        print(json_data)
-                        await asyncio.sleep(5)
-                        task = asyncio.create_task(self.__position_4_a_page(page_number, symbol, leader_id))
-                        await asyncio.wait([task, ])
-                        return task.result()
-        except Exception as exc:
-            print(exc)
-            print(json_data)
-            await asyncio.sleep(5)
-            task = asyncio.create_task(self.__position_4_a_page(page_number, symbol, leader_id))
-            await asyncio.wait([task, ])
-            return task.result()
+        while True:
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(url, json=json_data, headers=headers) as respond:
+
+                        if respond.status == 200:
+                            result = []
+                            position_list = await respond.json()
+                            position_list = position_list['data']['list']
+                            for position in position_list:
+                                result.append(position)
+                            return result
+                        else:
+                            # print(respond.status)
+                            # print(f"Retry-After={respond.headers}")
+                            # print(await respond.text())
+                            # print(json_data)
+                            print(f'http  {page_number} 未完成')
+                            await asyncio.sleep(5)
+                            continue
+            except Exception as exc:
+                # print(exc)
+                # print(respond.status)
+                # print(await respond.text())
+                # print(json_data)
+                # print(f'error  {page_number} 未完成')
+                print(f'{leader_id} 出错')
+                await asyncio.sleep(5)
+                continue
 
     async def __position_4_a_leader(self, symbol, i, leader_list, total_page_list):
         tasks = []
         total_page = total_page_list[i]
         leader = leader_list[i]
+        sleep_time = 1
         for page in range(1, total_page + 1):
             # print(f'total {i + 1} page {page} 开始')
-            task = asyncio.create_task(self.__position_4_a_page(page, symbol, leader.leader_id))
+            task = asyncio.create_task(self.__position_4_a_page(page, leader.leader_id, sleep_time * (page - 1)))
             tasks.append(task)
         await asyncio.wait(tasks)
         position_list = []
@@ -187,7 +190,7 @@ class Binance:
 
         json_data = {
             'pageNumber': 1,
-            'pageSize': 50,
+            'pageSize': 1,
             'portfolioId': leader.leader_id,
         }
         while True:
@@ -199,19 +202,22 @@ class Binance:
                             total_page = int(int(respond_json['data']['total']) / 50) + 1
                             return total_page
                         else:
+                            print(respond.status)
+                            print(f"Retry-After={respond.headers.get('Retry-After')}")
                             print(await respond.text())
-                            time.sleep(15)
+                            await asyncio.sleep(5)
                             continue
-                    except:
+                    except Exception as e:
+                        print(type(e), e)
                         print(await respond.text())
-                        time.sleep(15)
+                        await asyncio.sleep(5)
                         continue
 
     async def __position_4_all_leader(self, leader_list, symbol):
         total_page_list = []
-        for j in range(0, len(leader_list), int(len(leader_list) / 20)):
-            if j + int(len(leader_list) / 20) < len(leader_list):
-                leader_slice = leader_list[j:j + int(len(leader_list) / 20)]
+        for j in range(0, len(leader_list), int(len(leader_list) / 30)):
+            if j + int(len(leader_list) / 30) < len(leader_list):
+                leader_slice = leader_list[j:j + int(len(leader_list) / 30)]
             else:
                 leader_slice = leader_list[j:]
             tasks = []
@@ -229,34 +235,64 @@ class Binance:
         start = 0
         end = 0
         start_time = time.mktime(time.localtime())
-        while end < len(leader_list):
-            if end == 0:
-                page_count = 0
-                while page_count < 200 and end < len(leader_list):
-                    page_count += total_page_list[end]
-                    end += 1
-            else:
-                start = end
-                page_count = 0
-                while page_count < 200 and end < len(leader_list):
-                    page_count += total_page_list[end]
-                    end += 1
+        every_time_page_amount = 500
+        page_count_list = [1 for _ in range(len(total_page_list))]
+        current_leader_index = 0
+
+        loop_count = 1
+        while page_count_list != total_page_list:
+            if current_leader_index >= len(total_page_list)-1:
+                current_leader_index = 0
+            next_leader_index = (current_leader_index+
+                                 min(every_time_page_amount, len(total_page_list)-current_leader_index))
+            print(f'第{loop_count}次 共 {every_time_page_amount} 页 从{current_leader_index}到{next_leader_index} 开始')
             tasks = []
-            time.sleep(3)
-            print(f'{end - start} 个 leader 共 {page_count} 页')
-            for i in range(start, end):
-                task = asyncio.create_task(self.__position_4_a_leader(symbol, i, leader_list, total_page_list))
+
+            while current_leader_index < next_leader_index:
+                page = page_count_list[current_leader_index]
+                leader = leader_list[current_leader_index]
+                task = asyncio.create_task(self.__position_4_a_page(page, leader.leader_id))
                 tasks.append(task)
+                page_count_list[current_leader_index] += 1
+                current_leader_index += 1
             await asyncio.wait(tasks)
-            print(f'{end} 个 leader 共 {sum(total_page_list[:end])} 页 已完成！')
-            # time.sleep(15)
-            try:
-                for task in tasks:
-                    result.extend(task.result())
-            except:
-                print(f'已进行: {sum(total_page_list[:end])}页  将重试!')  # 3921
+            a_page_result = []
+            for task in tasks:
+                a_page_result.extend(task.result())
+            result.extend(a_page_result)
+            loop_count += 1
         print(f'总使用时间为{time.mktime(time.localtime()) - start_time} s')
         return result
+
+
+        # while end < len(leader_list):
+        #     if end == 0:
+        #         page_count = 0
+        #         while page_count < 1 and end < len(leader_list):
+        #             page_count += total_page_list[end]
+        #             end += 1
+        #     else:
+        #         start = end
+        #         page_count = 0
+        #         while page_count < 1 and end < len(leader_list):
+        #             page_count += total_page_list[end]
+        #             end += 1
+        #     tasks = []
+        #     time.sleep(3)
+        #     print(f'{end - start} 个 leader 共 {page_count} 页')
+        #     for i in range(start, end):
+        #         task = asyncio.create_task(self.__position_4_a_leader(symbol, i, leader_list, total_page_list))
+        #         tasks.append(task)
+        #     await asyncio.wait(tasks)
+        #     print(f'{end} 个 leader 共 {sum(total_page_list[:end])} 页 已完成！')
+        #     # time.sleep(15)
+        #     try:
+        #         for task in tasks:
+        #             result.extend(task.result())
+        #     except:
+        #         print(f'已进行: {sum(total_page_list[:end])}页  将重试!')  # 3921
+        # print(f'总使用时间为{time.mktime(time.localtime()) - start_time} s')
+        # return result
 
     def get_all_position_symbol(self, leader_list, symbol):
         loop = asyncio.get_event_loop()
@@ -286,7 +322,7 @@ class Binance:
                     'close': float(item[4]),
                 }
                 klines_data.append(kline)
-            end_time -= 1500*15*60*1000
+            end_time -= 1500 * 15 * 60 * 1000
             limit -= 1500
         else:
             body = {
