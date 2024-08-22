@@ -87,7 +87,7 @@ klines.reverse()
 with open('data.json', 'w') as f:
     data = {
         'close': list(map(lambda x: x['close'], klines)),
-        'short_position':list(map(lambda x: x['shortAccount'], top_position_ratio)),
+        'short_position': list(map(lambda x: x['shortAccount'], top_position_ratio)),
     }
     f.write(json.dumps(data))
 
@@ -125,6 +125,11 @@ plt.clf()
 plt.plot(list(map(lambda x: x['time'] / 1000, klines)), close_data, label='close')
 # plt.plot(list(map(lambda x: x['time']/1000, klines)), long_position, label='long_position')
 plt.plot(list(map(lambda x: x['time'] / 1000, klines)), short_position, label='short_position')
+plt.plot(list(map(lambda x: x['time'] / 1000, klines)), short_account, label='short_account')
+plt.plot(list(map(lambda x: x['time'] / 1000, klines)),
+         normalize(np.array(list(map(lambda x: x['shortAccount'], top_position_ratio)))
+                   / np.array(list(map(lambda x: x['shortAccount'], top_account_ratio)))),
+         label='short_position_account_ratio')
 # plt.plot(list(map(lambda x: x['time']/1000, klines)), np.array(long_position) + np.array(short_position), label='short_position')
 plt.legend()
 plt.ticklabel_format(useOffset=False, style='plain')
