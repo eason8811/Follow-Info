@@ -126,11 +126,11 @@ plt.plot(list(map(lambda x: x['time'] / 1000, klines)), close_data, label='close
 # plt.plot(list(map(lambda x: x['time']/1000, klines)), long_position, label='long_position')
 plt.plot(list(map(lambda x: x['time'] / 1000, klines)), short_position, label='short_position')
 plt.plot(list(map(lambda x: x['time'] / 1000, klines)), short_account, label='short_account')
-plt.plot(list(map(lambda x: x['time'] / 1000, klines)),
-         normalize(np.array(list(map(lambda x: x['shortAccount'], top_position_ratio)))
-                   / np.array(list(map(lambda x: x['shortAccount'], top_account_ratio)))),
-         label='short_position_account_ratio')
+short_position_account = normalize(np.array(list(map(lambda x: x['shortAccount'], top_position_ratio)))
+                   / np.array(list(map(lambda x: x['shortAccount'], top_account_ratio))))
+# plt.plot(list(map(lambda x: x['time'] / 1000, klines)), short_position_account, label='short_position_account_ratio')
 # plt.plot(list(map(lambda x: x['time']/1000, klines)), np.array(long_position) + np.array(short_position), label='short_position')
+# plt.plot(list(map(lambda x: x['time'] / 1000, klines)), close_data*-short_position, label='profit')
 plt.legend()
 plt.ticklabel_format(useOffset=False, style='plain')
 plt.grid(axis='both')
@@ -150,4 +150,8 @@ offset = 50
 #     plt.grid(axis='both')
 #     plt.legend()
 #     plt.savefig(f'offsetPic/{i}.png')
+
+plt.clf()
+
+
 print('已完成绘图')
